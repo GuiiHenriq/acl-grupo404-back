@@ -12,6 +12,9 @@ class User
     constructor() {
         this.validator = new validator();
         this.entityUser = entities.user;
+        this.product = entities.product;
+        this.productImages = entities.productImages;
+        this.entityUserAddress = entities.userAddress;
     }
 
     /**
@@ -28,11 +31,33 @@ class User
 
         const countData = await this.entityUser.count({where: criteria});
         const bodyData = await this.entityUser.findAll({
-            attributes: {exclude: ['password']},
+            attributes: {
+             exclude: [
+                'password',
+                'createdAt',
+                'updatedAt'
+             ]
+            },
             where: criteria,
             limit: filterInstance.getLimit(),
             order: filterInstance.getSort(),
-            offset: (filterInstance.getPage() == 1) ? 0 : (filterInstance.getPage() - 1) * filterInstance.getLimit()
+            include: [{
+                model: this.product,
+                attributes: {
+                    exclude: [
+                        'createdAt',
+                        'updatedAt'
+                    ],
+                },
+                include: [{
+                    model: this.productImages
+                }]},
+                {
+                    model: this.entityUserAddress,
+                    as: 'user_address'
+                }
+            ],
+            offset: (filterInstance.getPage() === 1) ? 0 : (filterInstance.getPage() - 1) * filterInstance.getLimit()
         });
 
         response.setHeader(countData, filterInstance);
@@ -49,7 +74,6 @@ class User
      */
     async create(data)
     {
-        // add criptografia na senha
         let salt = bcrypt.genSaltSync(10);
 
         if (!this.validator.validate(data) || !data.password) {
@@ -58,15 +82,20 @@ class User
 
         try {
             const valuesUser = {
-                'name': data.name,
-                'email': data.email,
-                'phone': data.phone,
-                'login': data.login,
-                'password': bcrypt.hashSync(data.password, salt),
-                'enabled': true
+                "name": data.name,
+                "email": data.email,
+                "phone": data.phone,
+                "login": data.login,
+                "password": bcrypt.hashSync(data.password, salt),
+                "enabled": true,
+                "user_address": data.user_address
             };
 
-            return await this.entityUser.create(valuesUser);
+            return await this.entityUser.create(valuesUser,{include: [{
+                model: this.entityUserAddress,
+                   as: 'user_address'
+                }]
+            });
         } catch (e) {
             return e.message;
         }
@@ -84,7 +113,27 @@ class User
             where: {
                 id: id
             },
-            raw: true
+            attributes: {
+                exclude: [
+                    'password'
+                ]
+            },
+            include: [{
+                model: this.product,
+                attributes: {
+                    exclude: [
+                        'createdAt',
+                        'updatedAt'
+                    ],
+                },
+                include: [{
+                    model: this.productImages
+                }]},
+                {
+                    model: this.entityUserAddress,
+                    as: 'user_address'
+                }
+            ]
         });
 
         if (data.length === 0) {

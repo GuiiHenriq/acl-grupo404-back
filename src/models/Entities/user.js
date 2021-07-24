@@ -18,6 +18,17 @@ module.exports = (sequelize, DataTypes) => {
         ]
       }
   );
+  user.associate = function(models) {
+    user.hasMany(models.product, {
+      sourceKey: 'id',
+      foreignKey: 'user_id'
+    });
+    user.hasMany(models.userAddress, {
+      sourceKey: 'id',
+      foreignKey: 'user_id',
+      as: 'user_address'
+    });
+  };
 
   return user;
 };
